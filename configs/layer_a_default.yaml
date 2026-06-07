@@ -1,0 +1,15 @@
+hz: 10.0
+mock: true
+device: cpu
+yolo_model: yolov8n.pt
+talknet_window_s: 1.0
+
+engagement:
+  weights_silent: [0.35, 0.10, 0.20, 0.10, 0.25]
+  weights_audible: [0.20, 0.35, 0.20, 0.15, 0.10]
+
+trigger:
+  score_threshold: 0.55
+  score_high: 0.72
+  consecutive_frames: 3
+  ttm_threshold: 0.6
