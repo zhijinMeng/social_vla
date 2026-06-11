@@ -1,0 +1,47 @@
+// This file was generated. DO NOT EDIT!
+
+syntax = "proto3";
+
+import "joint_state.proto";
+
+message ArmState {
+  // ArmState.msg - ROS 2 Message Definition for Robotic Arm State Information
+  // 
+  // This IDL file defines the message structure used for reporting the current state
+  // of robotic arms in the ROSci robot system. It includes system state, fault codes,
+  // joint states, and tool force/torque measurements for both arms.
+  // 
+  // Author: The Robotic Science Team
+  // Date: 2025-10-10
+  // Version: 1.0
+  // Version: 1.1 Add reach target flag
+
+  // State constants for arm system state machine
+  //   STATE_INIT = 0; // Initialization state
+  //   STATE_SETUP = 1; // Setup/configuration state
+  //   STATE_STOP = 2; // Stopped state
+  //   STATE_OPERATION = 3; // Normal operation state
+  //   STATE_BOOT = 4; // Boot/startup state
+  //   STATE_ERROR = 5; // Error/fault state
+
+  // Current system state of the arm
+  uint32 state = 1;
+
+  // Fault code indicating specific error conditions (0 = no fault)
+  uint32 fault_code = 2;
+
+  // Check the Arm is reach target (True if reach target)
+  bool is_reach_target = 3;
+
+  // Joint state information for 7-DOF right arm (array of 7 JointState messages)
+  repeated JointState right_joint = 4; // [7] 
+
+  // Joint state information for 7-DOF left arm (array of 7 JointState messages)
+  repeated JointState left_joint = 5; // [7] 
+
+  // Tool force/torque measurements for right arm (6-element array: Fx, Fy, Fz, Tx, Ty, Tz)
+  repeated float right_tool_force = 6; // [6] 
+
+  // Tool force/torque measurements for left arm (6-element array: Fx, Fy, Fz, Tx, Ty, Tz)
+  repeated float left_tool_force = 7; // [6] 
+}

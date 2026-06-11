@@ -79,21 +79,19 @@ python social_vla/pipeline/mock_demo.py --ticks 80 --vad-mock
 python social_vla/pipeline/mock_demo.py --real-weights --device cuda --ticks 80 --vad-mock
 ```
 
-### Live 真人 + 说话
+### Live 真人 + Qwen 真实对话（推荐）
 
 ```bash
-# 列出麦克风
-python social_vla/pipeline/live_demo.py --list-devices
-
-# 内置麦（ROG ALC294 用 --mic 4）
-python social_vla/pipeline/live_demo.py \
-  --camera 0 --device cuda --perception-only \
-  --mic 4 --vad-backend silero --audio-gain 2.0
+cd social_vla_engage
+./run_live.sh
+# 或: python run_live.py
 ```
 
+- `DASHSCOPE_API_KEY` 放在 `../.env.local`（自动加载）
 - `q` 退出，`r` 重置 session
-- `--perception-only`：只打分，显示 `WOULD_TRIGGER`，不改 state
-- 去掉 `--perception-only` 可测完整触发流程
+- 换麦克风：`./run_live.sh --mic 7`；列出设备：`./run_live.sh --list-devices`
+
+高级调试仍可用 `social_vla/pipeline/live_demo.py`（如 `--perception-only`、`--qwen-mock`）
 
 ### 日志字段
 

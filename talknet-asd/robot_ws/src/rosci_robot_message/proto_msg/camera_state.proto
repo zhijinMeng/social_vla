@@ -1,0 +1,38 @@
+// This file was generated. DO NOT EDIT!
+
+syntax = "proto3";
+
+import "sensor_msgs/image.proto";
+
+message CameraState {
+  // CameraState.msg - ROS 2 Message Definition for Camera Gripper Status
+  // 
+  // This IDL file defines the message structure used for reporting the current state
+  // of Camera in the ROSci robot system. It includes operational state,
+  // 
+  // Author: The Robotic Science Team
+  // Date: 2025-11-11
+  // Version: 1.0
+
+
+  //   STATE_INIT = 0; // Initialization state: Establishing communication
+  //   STATE_SETUP = 1; // Configuration state: Setting motion parameters
+  //   STATE_STOP = 2; // Stopped state: Motion halted, brakes engaged
+  //   STATE_OPERATION = 3; // Operational state: Actively controlling position
+  //   STATE_BOOT = 4; // Boot state: Performing hardware self-tests
+  //   STATE_ERROR = 5; // Error state: Critical fault detected
+
+  uint64 time_stamp = 1;
+
+  // Current operational state (use STATE_* constants)
+  uint32 state = 2;
+
+  // Fault code indicating specific error conditions (0 = no fault)
+  uint32 fault_code = 3;
+
+  sensor_msgs.Image rgb_frame = 4;
+
+  sensor_msgs.Image depth_frame = 5;
+
+  repeated sensor_msgs.Image infrared_frame = 6;
+}

@@ -13,7 +13,7 @@ class TriggerConfig:
     score_high: float = 0.72
     consecutive_frames: int = 3
     ttm_threshold: float = 0.6
-    utterance_min_s: float = 0.5
+    utterance_min_s: float = 0.8
     vl_confidence: float = 0.75
 
 
@@ -29,9 +29,11 @@ class TriggerRouter:
     def __init__(self, config: TriggerConfig | None = None):
         self.config = config or TriggerConfig()
         self._streak: dict[int, int] = {}
+        self._last_vad_active = False  # Track previous VAD state to detect edges
 
     def reset(self) -> None:
         self._streak.clear()
+        self._last_vad_active = False
 
     def evaluate(
         self,
@@ -44,18 +46,27 @@ class TriggerRouter:
     ) -> TriggerDecision:
         sm = session.session
         if sm.state == SessionState.IN_DIALOGUE:
-            if vad_active and utterance_duration_s >= self.config.utterance_min_s:
+            # Trigger turn only on VAD falling edge (1→0) after minimum duration
+            vad_ended = self._last_vad_active and not vad_active
+            if vad_ended and utterance_duration_s >= self.config.utterance_min_s:
+                self._last_vad_active = vad_active
                 return TriggerDecision("turn", sm.target_id, "user_utterance_end")
+            self._last_vad_active = vad_active
             return TriggerDecision(None, sm.target_id, "in_dialogue_wait")
 
         if sm.state != SessionState.IDLE:
             return TriggerDecision(None, None, f"state_{sm.state.value}")
 
-        # User-initiated has priority
-        if vad_active and utterance_duration_s >= self.config.utterance_min_s:
+        # User-initiated on utterance end (same edge semantics as in-dialogue turn)
+        vad_ended = self._last_vad_active and not vad_active
+        if vad_ended and utterance_duration_s >= self.config.utterance_min_s:
             candidate = self._best_speech_directed(scores, doa_track_id)
+            self._last_vad_active = vad_active
             if candidate is not None:
-                return TriggerDecision("user_initiated", candidate, "vad+ttm/doa", score=0.0)
+                return TriggerDecision("user_initiated", candidate, "vad_end+ttm/doa", score=0.0)
+            return TriggerDecision(None, None, "vad_end_no_speaker")
+
+        self._last_vad_active = vad_active
 
         # Robot-initiated via engagement score
         best = max(scores, key=lambda s: s.engagement) if scores else None

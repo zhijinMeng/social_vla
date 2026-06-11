@@ -1,0 +1,57 @@
+// This file was generated. DO NOT EDIT!
+
+syntax = "proto3";
+
+message MotionPlatformCommand {
+  // MotionPlatformCommand.msg - ROS 2 Message Definition for Motion Platform Control
+  // 
+  // This IDL file defines the command interface for robotic motion platforms,
+  // including state transitions and control parameters for linear and rotary motion.
+  // It serves as a communication protocol between the motion planning system and
+  // the hardware control layer of the robotic platform.
+  // 
+  // Author: The Robotic Science Team
+  // Date: 2025-10-25
+  // Version: 1.0
+
+  // Platform State Constants
+  // These constants define the valid operational states that the motion platform
+  // can be commanded to enter.
+  //   REQUEST_STATE_INIT = 0; // Initialization state: Establish communication and reset all parameters to default values
+  //   REQUEST_STATE_SETUP = 1; // Configuration state: Set motion limits, safety thresholds, and calibration parameters
+  //   REQUEST_STATE_STOP = 2; // Emergency stop: Immediate halt of all platform movement with active braking
+  //   REQUEST_STATE_OPERATION = 3; // Operation state: Enable closed-loop position control for normal operation
+  //   REQUEST_STATE_BOOT = 4; // Boot state: Execute hardware initialization and self-test sequence
+
+  // Target operational state
+  // Specifies which operational state the platform should transition into
+  uint32 request_state = 1;
+
+  // Emergency stop command
+  // When set to true, this overrides all other motion commands and immediately stops the platform
+  // Priority: Highest - overrides all other commands when asserted
+  // uint8 emerge_stop
+
+  // Direction control commands
+  // Binary flags to enable movement in specific directions
+  // Note: Conflicting directions (e.g., move_forward and move_backward simultaneously)
+  // will be ignored or handled according to the platform's conflict resolution policy
+
+
+  float linear_y = 2;
+
+  float linear_x = 3;
+
+  float angular_z = 4;
+
+
+  // Velocity limiting parameters
+
+  // Maximum allowable linear velocity coefficient, 0~1
+  // This value caps the maximum speed for all translational movements (forward/backward, left/right)
+  float max_linear_velocity_coeff = 5;
+
+  // Maximum allowable rotational velocity coefficient, 0~1
+  // This value caps the maximum angular speed for all rotational movements (left/right rotation)
+  float max_angular_velocity_coeff = 6;
+}

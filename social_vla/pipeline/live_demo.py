@@ -14,35 +14,83 @@ _ROOT = Path(__file__).resolve().parents[2]
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+
+def _load_env_local() -> None:
+    """Load KEY=VALUE lines from Research/.env.local into os.environ (no overwrite)."""
+    import os
+
+    for path in (_ROOT.parent / ".env.local", _ROOT / ".env.local"):
+        if not path.is_file():
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key, val = key.strip(), val.strip().strip("'\"")
+            os.environ.setdefault(key, val)
+        break
+
+
+_load_env_local()
+
 from social_vla.perception.audio_io import MicCapture, make_vad
 from social_vla.pipeline.layer_a import LayerAConfig, LayerAPipeline, default_yolo_weights, open_video_source
 from social_vla.types import FrameTick
+
+def _engagement_color(eng: float) -> tuple[int, int, int]:
+    """BGR: low=orange, high=green."""
+    return (0, int(180 + 75 * eng), int(255 - 200 * eng))
 
 
 def draw_overlay(frame: np.ndarray, tick: FrameTick, rms: float = 0.0) -> np.ndarray:
     vis = frame.copy()
     score_by_id = {s.track_id: s for s in tick.scores}
     for person in tick.persons:
-        x1, y1, x2, y2 = person.bbox.as_xyxy_int()
         sc = score_by_id.get(person.track_id)
         eng = sc.engagement if sc else 0.0
-        color = (0, int(180 + 75 * eng), int(255 - 200 * eng))
-        cv2.rectangle(vis, (x1, y1), (x2, y2), color, 2)
-        label = f"id{person.track_id} eng={eng:.2f}"
+        body_color = _engagement_color(eng)
+
+        bx1, by1, bx2, by2 = person.bbox.as_xyxy_int()
+        cv2.rectangle(vis, (bx1, by1), (bx2, by2), body_color, 2)
+        body_label = f"id{person.track_id} eng={eng:.2f}"
         if sc:
-            label += f" lam={sc.lam_prob:.2f} talk={sc.talknet_prob:.2f}"
-        cv2.putText(vis, label, (x1, max(20, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
+            body_label += f" dwell={sc.dwell_time:.1f}"
+        cv2.putText(
+            vis, body_label, (bx1, max(20, by1 - 8)),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.55, body_color, 2,
+        )
+
+        if sc and sc.face_bbox is not None:
+            fx1, fy1, fx2, fy2 = sc.face_bbox.as_xyxy_int()
+            face_color = (255, 200, 0)  # cyan-ish in BGR
+            cv2.rectangle(vis, (fx1, fy1), (fx2, fy2), face_color, 2)
+            face_label = f"face lam={sc.lam_prob:.2f} talk={sc.talknet_prob:.2f}"
+            if sc.ready_lam:
+                face_label += " L"
+            if sc.ready_talknet:
+                face_label += " T"
+            cv2.putText(
+                vis, face_label, (fx1, min(vis.shape[0] - 8, fy2 + 18)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, face_color, 2,
+            )
+
     mic_color = (0, 0, 255) if tick.vad_active else (120, 120, 120)
     header = f"state={tick.session_state.value} vad={int(tick.vad_active)} rms={rms:.0f} persons={len(tick.persons)}"
     if tick.trigger:
-        header += f" | {tick.trigger}"
+        label = "WOULD_TRIGGER" if tick.debug.get("perception_only") else "TRIGGER"
+        header += f" | {label}={tick.trigger}"
     cv2.putText(vis, header, (12, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255, 255, 255), 2)
+    cv2.putText(
+        vis, "body=engagement  face=lam/talk  L/T=buffer ready",
+        (12, 52), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (180, 180, 180), 1,
+    )
     cv2.circle(vis, (vis.shape[1] - 28, 28), 12, mic_color, -1 if tick.vad_active else 2)
     cv2.putText(vis, "q=quit r=reset session", (12, vis.shape[0] - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (200, 200, 200), 1)
     return vis
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="SocialVLA live person + speech detection")
     parser.add_argument("--camera", type=int, default=0, help="Camera index (default 0)")
     parser.add_argument("--video", default="", help="Video file path (overrides --camera)")
@@ -50,7 +98,13 @@ def main() -> None:
     parser.add_argument("--list-devices", action="store_true", help="List audio devices and exit")
     parser.add_argument("--hz", type=float, default=10.0)
     parser.add_argument("--device", default="cuda", help="cuda or cpu")
-    parser.add_argument("--mock-models", action="store_true", help="Skip TalkNet/LAM weights")
+    model_w = parser.add_mutually_exclusive_group()
+    model_w.add_argument("--mock-models", action="store_true", help="Skip TalkNet/LAM weights (mock scores)")
+    model_w.add_argument(
+        "--real-weights",
+        action="store_true",
+        help="Load TalkNet/LAM checkpoints (default when --mock-models is not set)",
+    )
     parser.add_argument("--no-mic", action="store_true", help="Disable microphone (vision only)")
     parser.add_argument(
         "--vad-backend",
@@ -70,7 +124,12 @@ def main() -> None:
     parser.add_argument("--no-preview", action="store_true", help="Terminal only, no OpenCV window")
     parser.add_argument("--width", type=int, default=0, help="Capture width (0=default)")
     parser.add_argument("--height", type=int, default=0, help="Capture height (0=default)")
-    args = parser.parse_args()
+    parser.add_argument("--score-threshold", type=float, default=0.55, help="Engagement trigger threshold (default 0.55)")
+    # Qwen-Omni dialogue
+    parser.add_argument("--qwen", action="store_true", help="Enable Qwen-Omni real dialogue (requires DASHSCOPE_API_KEY)")
+    parser.add_argument("--qwen-voice", default="Serena", help="Qwen-Omni voice (default: Serena)")
+    parser.add_argument("--qwen-mock", action="store_true", help="Use mock Qwen replies (no API key needed)")
+    args = parser.parse_args(argv)
 
     if args.list_devices:
         MicCapture.list_devices()
@@ -92,7 +151,26 @@ def main() -> None:
         device=args.device,
         yolo_model=default_yolo_weights(),
         perception_only=args.perception_only,
+        score_threshold=args.score_threshold,
     )
+
+    # Qwen-Omni dialogue adapter
+    if args.qwen or args.qwen_mock:
+        import os
+        from social_vla.dialogue.qwen_omni_adapter import QwenOmniConfig
+
+        def _on_reply(text: str) -> None:
+            print(f"\n  [🤖 Robot says] {text}\n")
+
+        def _on_partial(chunk: str) -> None:
+            print(chunk, end="", flush=True)
+
+        cfg.qwen_omni = QwenOmniConfig(
+            mock=args.qwen_mock,
+            voice=args.qwen_voice,
+            on_reply=_on_reply,
+            on_partial=_on_partial,
+        )
     pipe = LayerAPipeline(cfg)
 
     mic = None
@@ -198,6 +276,10 @@ def main() -> None:
     finally:
         cap.release()
         cv2.destroyAllWindows()
+        try:
+            pipe.close()
+        except (KeyboardInterrupt, Exception):
+            pass
 
 
 if __name__ == "__main__":

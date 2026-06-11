@@ -19,17 +19,21 @@ DEFAULT_WINDOW_S = 1.0
 
 
 def _talknet_root() -> Path:
-    return Path(__file__).resolve().parents[2] / "third_party" / "TalkNet-ASD"
+    return Path(__file__).resolve().parents[2] / "talknet-asd"
 
 
 def _import_talknet_modules():
     root = str(_talknet_root())
-    if root not in sys.path:
+    inserted = root not in sys.path
+    if inserted:
         sys.path.insert(0, root)
-    from loss import lossAV  # type: ignore
-    from model.talkNetModel import talkNetModel  # type: ignore
-
-    return talkNetModel, lossAV
+    try:
+        from model.talkNetModel import talkNetModel  # type: ignore
+        from loss import lossAV  # type: ignore
+        return talkNetModel, lossAV
+    finally:
+        if inserted and root in sys.path:
+            sys.path.remove(root)
 
 
 @dataclass
@@ -183,7 +187,7 @@ class StreamingTalkNetEngine:
         timestamp: float,
     ) -> tuple[float, bool]:
         buf = self._buffers.setdefault(track_id, _AvTrackBuffer())
-        face_bbox = person_bbox_to_face_bbox(person_bbox)
+        face_bbox = person_bbox_to_face_bbox(person_bbox, frame_bgr)
         face_rgb = crop_face_rgb(frame_bgr, face_bbox)
         gray = face_rgb_to_talknet_gray(face_rgb)
         buf.push_visual(gray, timestamp)

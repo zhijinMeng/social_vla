@@ -1,0 +1,9 @@
+// This file was generated. DO NOT EDIT!
+
+syntax = "proto3";
+
+import "array2_d.proto";
+
+message Array3D {
+  repeated Array2D array_3d = 1;
+}

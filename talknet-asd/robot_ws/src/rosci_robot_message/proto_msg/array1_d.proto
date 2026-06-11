@@ -1,0 +1,7 @@
+// This file was generated. DO NOT EDIT!
+
+syntax = "proto3";
+
+message Array1D {
+  repeated float array_1d = 1;
+}

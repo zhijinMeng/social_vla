@@ -6,3 +6,8 @@ weights/
 third_party/
 *.pt
 yolov8n.pt
+*.part
+.env
+.env.local
+qwen_debug.log
+*.log

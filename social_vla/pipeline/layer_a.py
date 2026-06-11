@@ -2,11 +2,16 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
+
+if TYPE_CHECKING:
+    from social_vla.dialogue.qwen_omni_adapter import QwenOmniConfig
+    from social_vla.session.die_trigger import DIEConfig
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -30,6 +35,18 @@ from social_vla.session.manager import SessionManager
 from social_vla.session.trigger import TriggerRouter
 from social_vla.types import FrameTick, PerPersonScores, PersonTrack
 
+# Runtime import — only needed when qwen_omni config is provided
+try:
+    from social_vla.dialogue.qwen_omni_adapter import QwenOmniAdapter
+except ImportError:
+    QwenOmniAdapter = None  # type: ignore[assignment,misc]
+
+# Runtime import — only needed when die config is provided
+try:
+    from social_vla.session.die_trigger import DIETrigger
+except ImportError:
+    DIETrigger = None  # type: ignore[assignment,misc]
+
 
 @dataclass
 class LayerAConfig:
@@ -43,6 +60,12 @@ class LayerAConfig:
     talknet_window_s: float = 1.0
     vad_mock: bool = False
     perception_only: bool = False
+    # Pass a QwenOmniConfig to enable dialogue; None keeps the mock placeholders
+    qwen_omni: QwenOmniConfig | None = None
+    # Pass a DIEConfig to use the learned trigger; None uses heuristic TriggerRouter
+    die: DIEConfig | None = None
+    # Engagement trigger threshold (lower = more sensitive)
+    score_threshold: float = 0.55
 
 
 class LayerAPipeline:
@@ -69,26 +92,54 @@ class LayerAPipeline:
         self.audio = AudioMfccStream()
         self.scorer = EngagementScorer()
         self.session = SessionManager()
-        self.trigger = TriggerRouter()
+
+        # Trigger: DIE (learned) if configured, else heuristic TriggerRouter
+        if self.config.die is not None and DIETrigger is not None:
+            from social_vla.session.die_trigger import DIETrigger as _DIE
+            self.trigger = _DIE(self.config.die, device=self.config.device)
+        else:
+            from social_vla.session.trigger import TriggerConfig
+            self.trigger = TriggerRouter(TriggerConfig(score_threshold=self.config.score_threshold))
+
         self._frame_idx = 0
         self._last_tick = 0.0
         self._vad_active = False
         self._utterance_t0: float | None = None
+        self._last_utterance_dur: float = 0.0
+        self._utterance_doa_track: int | None = None
         self._global_mfcc_track: int | None = None
+
+        # Optional Qwen-Omni dialogue adapter
+        self._qwen: QwenOmniAdapter | None = None
+        if self.config.qwen_omni is not None:
+            from social_vla.dialogue.qwen_omni_adapter import QwenOmniAdapter
+            self._qwen = QwenOmniAdapter(self.config.qwen_omni)
+            self._qwen.start()
 
     def push_audio_pcm(self, pcm: np.ndarray, active_track_id: int | None = None) -> None:
         rows = self.audio.push_pcm(pcm)
         tid = active_track_id or self._global_mfcc_track
-        if tid is None:
-            return
-        self.talknet.push_audio_mfcc(tid, rows)
+        if tid is not None:
+            self.talknet.push_audio_mfcc(tid, rows)
+        if self._qwen is not None:
+            self._qwen.push_user_pcm(pcm, timestamp=time.time())
 
     def set_vad(self, active: bool, now: float | None = None) -> None:
         ts = now if now is not None else time.time()
+        if self._qwen is not None:
+            active = self._qwen.gate_vad(active)
+        if self._qwen is not None:
+            self._qwen.note_vad(active)
         if active and not self._vad_active:
             self._utterance_t0 = ts
-        if not active:
+            if self._qwen is not None:
+                self._qwen.begin_user_turn()
+        if not active and self._vad_active:
+            if self._utterance_t0 is not None:
+                self._last_utterance_dur = ts - self._utterance_t0
             self._utterance_t0 = None
+        if active and self._global_mfcc_track is not None:
+            self._utterance_doa_track = self._global_mfcc_track
         self._vad_active = active
 
     def process_frame(self, frame_bgr: np.ndarray, timestamp: float | None = None) -> FrameTick:
@@ -113,7 +164,7 @@ class LayerAPipeline:
 
         scores: list[PerPersonScores] = []
         for person in persons:
-            face_bbox = person_bbox_to_face_bbox(person.bbox)
+            face_bbox = person_bbox_to_face_bbox(person.bbox, frame_bgr)
             lam_prob, ready_lam = self.lam.update(person.track_id, frame_bgr, face_bbox, ts)
             talk_prob, ready_talk = self.talknet.update_visual(
                 person.track_id, frame_bgr, person.bbox, ts
@@ -129,32 +180,96 @@ class LayerAPipeline:
                 ready_talknet=ready_talk,
                 speech_directed=speech_directed,
             )
+            fused.face_bbox = face_bbox
             scores.append(fused)
 
         utter_dur = 0.0
         if self._vad_active and self._utterance_t0 is not None:
             utter_dur = ts - self._utterance_t0
+        elif not self._vad_active and self._last_utterance_dur > 0:
+            # Use last utterance duration on the falling edge
+            utter_dur = self._last_utterance_dur
+
+        doa_track = self._utterance_doa_track
+        if self._vad_active and self._global_mfcc_track is not None:
+            doa_track = self._global_mfcc_track
 
         decision = self.trigger.evaluate(
             scores=scores,
             session=self.session,
             vad_active=self._vad_active,
             utterance_duration_s=utter_dur,
-            doa_track_id=self._global_mfcc_track if self._vad_active else None,
+            doa_track_id=doa_track,
             now=ts,
         )
+
+        if not self._vad_active and decision.path in ("user_initiated", "turn"):
+            self._utterance_doa_track = None
 
         if not self.config.perception_only:
             if decision.path == "robot_initiated" and decision.target_id is not None:
                 self.session.start_robot_initiated(decision.target_id, ts)
-                self.session.enter_dialogue("[MOCK OPENING] 你好，想了解机器人吗？", ts)
+                if self._qwen is not None:
+                    self._qwen.on_frame_tick(
+                        FrameTick(
+                            timestamp=ts,
+                            frame_idx=self._frame_idx,
+                            persons=persons,
+                            scores=scores,
+                            vad_active=self._vad_active,
+                            best_target_id=decision.target_id,
+                            trigger=decision.path,
+                            session_state=self.session.session.state,
+                        ),
+                        frame_bgr=frame_bgr,
+                    )
+                    opening = "[Qwen-Omni greeting in progress]"
+                else:
+                    opening = "[MOCK OPENING] 你好，想了解机器人吗？"
+                self.session.enter_dialogue(opening, ts)
+
             elif decision.path == "user_initiated" and decision.target_id is not None:
+                if self._qwen is not None:
+                    self._qwen.on_frame_tick(
+                        FrameTick(
+                            timestamp=ts,
+                            frame_idx=self._frame_idx,
+                            persons=persons,
+                            scores=scores,
+                            vad_active=self._vad_active,
+                            best_target_id=decision.target_id,
+                            trigger=decision.path,
+                            session_state=self.session.session.state,
+                        ),
+                        frame_bgr=frame_bgr,
+                    )
+                    user_text = "[Qwen-Omni ASR in progress]"
+                    reply = "[Qwen-Omni reply in progress]"
+                else:
+                    user_text = "[MOCK USER]"
+                    reply = "[MOCK REPLY] 你好！我是展会引导机器人。"
                 self.session.start_user_initiated(
                     decision.target_id,
-                    user_text="[MOCK USER]",
-                    reply="[MOCK REPLY] 你好！我是展会引导机器人。",
+                    user_text=user_text,
+                    reply=reply,
                     now=ts,
                 )
+
+            elif decision.path == "turn" and decision.target_id is not None:
+                if self._qwen is not None:
+                    self._qwen.on_frame_tick(
+                        FrameTick(
+                            timestamp=ts,
+                            frame_idx=self._frame_idx,
+                            persons=persons,
+                            scores=scores,
+                            vad_active=self._vad_active,
+                            best_target_id=decision.target_id,
+                            trigger=decision.path,
+                            session_state=self.session.session.state,
+                        ),
+                        frame_bgr=frame_bgr,
+                    )
 
         self._frame_idx += 1
         tick = FrameTick(
@@ -224,6 +339,24 @@ class LayerAPipeline:
 
         self.session = SessionManager()
         self.trigger.reset()
+
+        # Reset Qwen conversation to avoid accumulated context
+        if self._qwen is not None:
+            try:
+                self._qwen.stop()
+                self._qwen.start()
+            except Exception as exc:
+                print(f"[Warning] Failed to reset Qwen conversation: {exc}")
+
+    def close(self) -> None:
+        """Stop the Qwen-Omni adapter if running."""
+        qwen = self._qwen
+        self._qwen = None
+        if qwen is not None:
+            try:
+                qwen.stop()
+            except Exception:
+                pass
 
 
 def open_video_source(path: str | int):

@@ -9,7 +9,12 @@ tqdm>=4.65
 sounddevice>=0.4.6
 silero-vad>=5.1.2
 
-# Layer B (later)
+# Layer B — Qwen-Omni dialogue adapter
+# Install with: pip install dashscope
+# Requires DASHSCOPE_API_KEY env var
+dashscope>=1.22.0
+
+# Layer B (local inference, later)
 # vllm
 # faster-whisper
 # transformers

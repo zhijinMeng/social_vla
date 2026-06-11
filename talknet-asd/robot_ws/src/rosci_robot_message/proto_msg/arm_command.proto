@@ -1,0 +1,39 @@
+// This file was generated. DO NOT EDIT!
+
+syntax = "proto3";
+
+import "joint_command.proto";
+
+message ArmCommand {
+  // ArmCommand.msg - ROS 2 Message Definition for Robotic Arm Control Commands
+  // 
+  // This IDL file defines the message structure used for sending control commands
+  // to robotic arms in the robot system. It includes state requests and
+  // joint-level commands for both right and left arms.
+  // 
+  // Author: The Robotic Science Team
+  // Date: 2025-10-10
+  // Version: 1.0
+
+  // State request constants for arm control state machine
+  //   REQUEST_STATE_INIT = 0; // Initialize arm system
+  //   REQUEST_STATE_SETUP = 1; // Setup/configuration state
+  //   REQUEST_STATE_STOP = 2; // Stop arm operation
+  //   REQUEST_STATE_OPERATION = 3; // Normal operation state
+  //   REQUEST_STATE_BOOT = 4; // Boot/startup state
+
+  // Request state request for the arm system
+  uint32 request_state = 1;
+
+  // Joint commands for 7-DOF right arm (array of 7 JointCommand messages)
+  repeated JointCommand right_joint = 2; // [7] 
+
+  // Joint commands for 7-DOF left arm (array of 7 JointCommand messages)
+  repeated JointCommand left_joint = 3; // [7] 
+
+  // Velocity gain factor (0.0 to 1.0) for scaling maximum joint velocity
+  float velocity_gain = 4;
+
+  // Acceleration gain factor (0.0 to 1.0) for scaling maximum joint acceleration
+  float acceleration_gain = 5;
+}

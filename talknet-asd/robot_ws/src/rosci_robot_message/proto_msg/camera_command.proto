@@ -1,0 +1,40 @@
+// This file was generated. DO NOT EDIT!
+
+syntax = "proto3";
+
+message CameraCommand {
+  // GripperCommand.msg - Control commands Camera mechanism
+  // 
+  // Author: The Robotic Science Team
+  // Date: 2025-10-25
+  // Version: 1.0
+
+  // State machine definitions (0-5 reserved for system control)
+  //   REQUEST_STATE_INIT = 0; // Initialize communication and reset parameters
+  //   REQUEST_STATE_SETUP = 1; // Configure motion profiles and safety limits
+  //   REQUEST_STATE_STOP = 2; // Emergency stop (immediate motion halt)
+  //   REQUEST_STATE_OPERATION = 3; // Normal closed-loop position control mode
+  //   REQUEST_STATE_BOOT = 4; // Boot/startup state
+
+
+  // Request state request telescopic gripper
+  uint32 request_state = 1; // [0-5] Target operational mode from state definitions
+
+
+  bool enable_rgb_frame = 2;
+  int32 rgb_wight = 3;
+  int32 rgb_heigth = 4;
+  int32 rgb_fps = 5;
+
+  bool enable_depth_frame = 6;
+  int32 depth_wight = 7;
+  int32 depth_heigth = 8;
+  int32 depth_fps = 9;
+
+  bool enable_infrared_frame = 10;
+  int32 infrared_wight = 11;
+  int32 infrared_heigth = 12;
+  int32 infrared_fps = 13;
+
+
+}

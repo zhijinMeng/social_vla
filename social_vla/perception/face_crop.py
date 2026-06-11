@@ -1,17 +1,62 @@
 """Face crop utilities shared by LAM and TalkNet."""
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
 import cv2
 import numpy as np
 
 from social_vla.types import BBox
 
+_S3FD_ROOT = Path(__file__).resolve().parents[2] / "talknet-asd"
+_s3fd_detector = None
 
-def person_bbox_to_face_bbox(person: BBox, face_fraction: float = 0.45) -> BBox:
-    """Heuristic face region from full-body person box (upper portion)."""
-    h = person.h
-    face_h = h * face_fraction
-    return BBox(person.x1, person.y1, person.x2, person.y1 + face_h)
+
+def _get_s3fd(device: str = "cuda"):
+    global _s3fd_detector
+    if _s3fd_detector is not None:
+        return _s3fd_detector
+    inserted = str(_S3FD_ROOT) not in sys.path
+    if inserted:
+        sys.path.insert(0, str(_S3FD_ROOT))
+    import os
+    orig_cwd = os.getcwd()
+    os.chdir(str(_S3FD_ROOT))
+    try:
+        from model.faceDetector.s3fd import S3FD  # type: ignore
+        _s3fd_detector = S3FD(device=device)
+    except Exception:
+        _s3fd_detector = None
+    finally:
+        os.chdir(orig_cwd)
+        if inserted and str(_S3FD_ROOT) in sys.path:
+            sys.path.remove(str(_S3FD_ROOT))
+    return _s3fd_detector
+
+
+def person_bbox_to_face_bbox(person: BBox, frame: np.ndarray | None = None, device: str = "cuda") -> BBox:
+    """Detect face within person bbox using S3FD; fall back to upper-40% heuristic."""
+    fallback = BBox(person.x1, person.y1, person.x2, person.y1 + person.h * 0.40)
+    if frame is None:
+        return fallback
+    fh, fw = frame.shape[:2]
+    x1, y1, x2, y2 = person.clip(fw, fh).as_xyxy_int()
+    roi = frame[y1:y2, x1:x2]
+    if roi.size == 0:
+        return fallback
+    det = _get_s3fd(device)
+    if det is None:
+        return fallback
+    try:
+        faces = det.detect_faces(roi, conf_th=0.5, scales=[0.5])
+    except Exception:
+        return fallback
+    if not len(faces):
+        return fallback
+    fx1, fy1, fx2, fy2, _ = max(faces, key=lambda f: (f[2] - f[0]) * (f[3] - f[1]))
+    return BBox(x1 + fx1, y1 + fy1, x1 + fx2, y1 + fy2)
+
 
 
 def crop_face_rgb(frame: np.ndarray, bbox: BBox, size: int = 224, scale: float = 0.1) -> np.ndarray:

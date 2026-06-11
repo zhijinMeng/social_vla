@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  FastDDS TCP 传输配置 - 电脑端（Client / Subscriber）
+  需要指向机器人的 IP 和端口
+
+  用法:
+    export FASTRTPS_DEFAULT_PROFILES_FILE=~/Downloads/delay_test/fastdds_tcp_client.xml
+    source /opt/ros/humble/setup.bash && export ROS_DOMAIN_ID=10
+    # 然后正常启动 ROS2 节点
+-->
+<dds xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+    <profiles>
+        <transport_descriptors>
+            <transport_descriptor>
+                <transport_id>tcp_client</transport_id>
+                <type>TCPv4</type>
+                <sendBufferSize>1048576</sendBufferSize>
+                <receiveBufferSize>1048576</receiveBufferSize>
+                <maxMessageSize>65500</maxMessageSize>
+            </transport_descriptor>
+        </transport_descriptors>
+
+        <participant profile_name="participant_tcp_client" is_default_profile="true">
+            <rtps>
+                <userTransports>
+                    <transport_id>tcp_client</transport_id>
+                </userTransports>
+                <useBuiltinTransports>false</useBuiltinTransports>
+                <builtin>
+                    <discovery_config>
+                        <leaseDuration>
+                            <sec>20</sec>
+                        </leaseDuration>
+                        <initialAnnouncements>
+                            <count>5</count>
+                            <period>
+                                <sec>1</sec>
+                            </period>
+                        </initialAnnouncements>
+                    </discovery_config>
+                    <metatrafficUnicastLocatorList>
+                        <locator>
+                            <tcpv4>
+                                <address>172.16.3.49</address>
+                                <port>4242</port>
+                            </tcpv4>
+                        </locator>
+                    </metatrafficUnicastLocatorList>
+                </builtin>
+            </rtps>
+        </participant>
+    </profiles>
+</dds>

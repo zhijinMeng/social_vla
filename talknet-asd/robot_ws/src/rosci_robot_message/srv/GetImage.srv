@@ -1,0 +1,14 @@
+# GetImage.srv - 按需获取相机图像
+#
+# 客户端发送话题名，服务端返回该话题的最新一帧图像
+#
+# Author: The Robotic Science Team
+# Date: 2026-03-18
+
+# Request
+string topic_name          # 要获取的相机话题名，如 /camera/head/depth/forward
+---
+# Response
+bool success               # 是否成功获取到图像
+string message             # 状态信息（失败原因等）
+sensor_msgs/Image image    # 标准 ROS2 Image 消息

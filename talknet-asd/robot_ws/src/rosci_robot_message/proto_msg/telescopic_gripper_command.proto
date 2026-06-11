@@ -1,0 +1,27 @@
+// This file was generated. DO NOT EDIT!
+
+syntax = "proto3";
+
+message TelescopicGripperCommand {
+  // TelescopicGripperCommand.msg - Control commands for telescopic gripper mechanism
+  // 
+  // This message defines operational states and position targets for robotic telescopic grippers.
+  // Used in arm control systems to coordinate extension/retraction movements.
+  // Author: The Robotic Science Team
+  // Date: 2025-10-25
+  // Version: 1.0
+
+  // State machine definitions (0-5 reserved for system control)
+  //   REQUEST_STATE_INIT = 0; // Initialize communication and reset parameters
+  //   REQUEST_STATE_SETUP = 1; // Configure motion profiles and safety limits
+  //   REQUEST_STATE_STOP = 2; // Emergency stop (immediate motion halt)
+  //   REQUEST_STATE_OPERATION = 3; // Normal closed-loop position control mode
+  //   REQUEST_STATE_BOOT = 4; // Boot/startup state
+  //   STATE_ERROR = 5; // Error/fault state
+
+  // Request state request telescopic gripper
+  uint32 request_state = 1; // [0-5] Target operational mode from state definitions
+
+  // Desired position
+  float position = 2; // Target extension position in meters (m) 
+}

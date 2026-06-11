@@ -1,0 +1,27 @@
+// This file was generated. DO NOT EDIT!
+
+syntax = "proto3";
+
+message LiftPlatformCommand {
+  // LiftPlatformCommand.msg - ROS 2 Message Definition for Motion Platform Control
+  // 
+  // This IDL file defines the command interface for robotic motion platforms,
+  // including state transitions and position targets for linear/rotary motion control.
+  // 
+  // Author: The Robotic Science Team
+  // Date: 2025-10-25
+  // Version: 1.0
+
+  //   REQUEST_STATE_INIT = 0; // Initialization state: Establish communication and reset parameters
+  //   REQUEST_STATE_SETUP = 1; // Configuration state: Set motion limits and safety thresholds
+  //   REQUEST_STATE_STOP = 2; // Emergency stop: Immediate halt of all platform movement
+  //   REQUEST_STATE_OPERATION = 3; // Operation state: Enable closed-loop position control
+  //   REQUEST_STATE_BOOT = 4; // Boot state: Execute hardware initialization sequence
+
+
+  // Target operational state
+  uint32 request_state = 1;
+
+  // Target platform position in meters (linear) or radians (rotary)
+  float position = 2;
+}

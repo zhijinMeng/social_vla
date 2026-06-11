@@ -24,11 +24,18 @@ def _ego4d_root() -> Path:
 
 def _import_gaze_lstm():
     root = str(_ego4d_root())
-    if root not in sys.path:
+    inserted = root not in sys.path
+    if inserted:
         sys.path.insert(0, root)
-    from model.model import GazeLSTM  # type: ignore
-
-    return GazeLSTM
+    try:
+        from model.model import GazeLSTM  # type: ignore
+        return GazeLSTM
+    finally:
+        if inserted and root in sys.path:
+            sys.path.remove(root)
+        # clear ego4d model.* from cache so TalkNet can import its own model package
+        for key in [k for k in sys.modules if k == "model" or k.startswith("model.")]:
+            del sys.modules[key]
 
 
 @dataclass

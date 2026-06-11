@@ -1,0 +1,24 @@
+// This file was generated. DO NOT EDIT!
+
+syntax = "proto3";
+
+message JointCommand {
+  // JointCommand.msg - ROS 2 Message Definition for Individual Joint Control Commands
+  // 
+  // This IDL file defines the message structure used for sending control commands
+  // to individual joints in the robotic arm system. Each joint command specifies
+  // desired position and motion profile parameters.
+  // 
+  // Author: The Robotic Science Team
+  // Date: 2025-10-10
+  // Version: 1.0
+
+  // Desired position for the joint in radians
+  float position_desired = 1;
+
+  // Velocity gain factor (0.0 to 1.0) for scaling maximum joint velocity
+  float velocity_gain = 2;
+
+  // Acceleration gain factor (0.0 to 1.0) for scaling maximum joint acceleration
+  float acceleration_gain = 3;
+}

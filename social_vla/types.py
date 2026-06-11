@@ -82,6 +82,7 @@ class PerPersonScores:
     weights: list[float] = field(default_factory=list)
     ready_lam: bool = False
     ready_talknet: bool = False
+    face_bbox: BBox | None = None
 
 
 @dataclass

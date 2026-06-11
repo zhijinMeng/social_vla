@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>rosci_robot_message</name>
+  <version>0.0.0</version>
+  <description>Message definitions for ROSCI robot</description>
+  
+  <member_of_group>rosidl_interface_packages</member_of_group>
+  <maintainer email="dongyongchang@roboscience.ai">DongYongchang</maintainer>
+  <license>TODO: License declaration</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <!-- 构建时生成 ROS2 接口所需 -->
+  <build_depend>rosidl_default_generators</build_depend>
+  <!-- 消息包使用的依赖消息类型 -->
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+
+  <!-- 下游包在运行时使用生成的接口所需 -->
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  <!-- 依赖消息包的运行时导出 -->
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+
+  <!-- Python Wrapper 节点依赖 -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>ros2launch</exec_depend>
+  
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

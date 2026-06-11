@@ -1,0 +1,35 @@
+// This file was generated. DO NOT EDIT!
+
+syntax = "proto3";
+
+message TelescopicGripperState {
+  // TelescopicGripperState.msg - ROS 2 Message Definition for Telescopic Gripper Status
+  // 
+  // This IDL file defines the message structure used for reporting the current state
+  // of telescopic grippers in the ROSci robot system. It includes operational state,
+  // position feedback, and target achievement status.
+  // 
+  // Author: The Robotic Science Team
+  // Date: 2025-10-10
+  // Version: 1.0
+
+
+  //   STATE_INIT = 0; // Initialization state: Establishing communication
+  //   STATE_SETUP = 1; // Configuration state: Setting motion parameters
+  //   STATE_STOP = 2; // Stopped state: Motion halted, brakes engaged
+  //   STATE_OPERATION = 3; // Operational state: Actively controlling position
+  //   STATE_BOOT = 4; // Boot state: Performing hardware self-tests
+  //   STATE_ERROR = 5; // Error state: Critical fault detected
+
+  // Current operational state (use STATE_* constants)
+  uint32 state = 1;
+
+  // Fault code indicating specific error conditions (0 = no fault)
+  uint32 fault_code = 2;
+
+  // Current extension position in meters (m)
+  float position = 3;
+
+  // Target achievement status true = position reached
+  bool is_reach_target = 4;
+}

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  FastDDS 配置 - 单播发现 + 大 buffer
+  保留默认传输，额外添加单播 peer 指向机器人
+
+  用法（电脑端）:
+    export FASTRTPS_DEFAULT_PROFILES_FILE=~/Downloads/delay_test/fastdds_unicast.xml
+    source /opt/ros/humble/setup.bash && export ROS_DOMAIN_ID=10
+-->
+<dds xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+    <profiles>
+        <participant profile_name="participant_unicast" is_default_profile="true">
+            <rtps>
+                <useBuiltinTransports>true</useBuiltinTransports>
+                <builtin>
+                    <initialPeersList>
+                        <locator>
+                            <udpv4>
+                                <address>172.16.3.49</address>
+                            </udpv4>
+                        </locator>
+                    </initialPeersList>
+                </builtin>
+            </rtps>
+        </participant>
+    </profiles>
+</dds>

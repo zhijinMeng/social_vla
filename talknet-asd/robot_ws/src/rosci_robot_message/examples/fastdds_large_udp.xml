@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!--
+  FastDDS UDP 大消息配置
+  增大 buffer 以支持深度图等大消息跨网络传输
+
+  用法:
+    export FASTRTPS_DEFAULT_PROFILES_FILE=~/Downloads/delay_test/fastdds_large_udp.xml
+    source /opt/ros/humble/setup.bash && export ROS_DOMAIN_ID=10
+-->
+<dds xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+    <profiles>
+        <transport_descriptors>
+            <transport_descriptor>
+                <transport_id>large_udp</transport_id>
+                <type>UDPv4</type>
+                <sendBufferSize>2097152</sendBufferSize>
+                <receiveBufferSize>2097152</receiveBufferSize>
+                <maxMessageSize>65500</maxMessageSize>
+            </transport_descriptor>
+        </transport_descriptors>
+
+        <participant profile_name="participant_large_udp" is_default_profile="true">
+            <rtps>
+                <userTransports>
+                    <transport_id>large_udp</transport_id>
+                </userTransports>
+                <useBuiltinTransports>false</useBuiltinTransports>
+            </rtps>
+        </participant>
+    </profiles>
+</dds>
